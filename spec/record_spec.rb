@@ -650,6 +650,7 @@ RSpec.describe AttrJson::Record do
               include AttrJson::Record
               self.table_name = "products"
 
+              attr_json :boolean_value, :boolean, default: :true, container_attribute: :other_attributes
               attr_json :value, :string, default: "value default", store_key: "_store_key", container_attribute: :json_attributes
               attr_json :other_value, :string, default: "other value default", store_key: "_store_key", container_attribute: :other_attributes
             end
@@ -669,6 +670,19 @@ RSpec.describe AttrJson::Record do
             instance.other_attributes = {}
             expect(instance.other_attributes).to eq("_store_key" => "other value default")
           end
+
+          it "saves properly" do
+            instance.save!
+            re_fetched_instance = instance.class.find(instance.id)
+
+            expect(re_fetched_instance.value).to eq "value default"
+            expect(re_fetched_instance.other_value).to eq "other value default"
+            expect(re_fetched_instance.boolean_value).to eq true
+
+            expect(re_fetched_instance.json_attributes).to eq("_store_key" => "value default")
+            expect(re_fetched_instance.other_attributes).to eq("_store_key" => "other value default", "boolean_value" => true)
+          end
+
         end
       end
     end
