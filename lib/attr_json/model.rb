@@ -260,12 +260,13 @@ module AttrJson
     private
 
     def _attr_json_write(key, value)
-      if attribute_def = self.class.attr_json_registry[key.to_sym]
-        attributes[key.to_s] = attribute_def.cast(value)
-      else
-        # TODO, strict mode, ignore, raise, allow.
-        attributes[key.to_s] = value
-      end
+      v = if attribute_def = self.class.attr_json_registry[key.to_sym]
+            attribute_def.cast(value)
+          else
+            # TODO, strict mode, ignore, raise, allow.
+            value
+          end
+      attributes[key.to_s] = v
     end
 
 

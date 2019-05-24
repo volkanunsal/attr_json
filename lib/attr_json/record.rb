@@ -92,8 +92,6 @@ module AttrJson
         end
       end
 
-
-
       # Type can be a symbol that will be looked up in `ActiveModel::Type.lookup`,
       # or an ActiveModel:::Type::Value).
       #
@@ -115,19 +113,13 @@ module AttrJson
       #
       # @option options [Boolean] :validate (true) Create an ActiveRecord::Validations::AssociatedValidator so
       #   validation errors on the attributes post up to self.
-      #
-      # @option options [Boolean] :rails_attribute (false) Create an actual ActiveRecord
-      #    `attribute` for name param. A Rails attribute isn't needed for our functionality,
-      #    but registering thusly will let the type be picked up by simple_form and
-      #    other tools that may look for it via Rails attribute APIs.
       def attr_json(name, type, **options)
         options = {
-          rails_attribute: false,
           validate: true,
           container_attribute: self.attr_json_config.default_container_attribute,
           accepts_nested_attributes: self.attr_json_config.default_accepts_nested_attributes
         }.merge!(options)
-        options.assert_valid_keys(AttributeDefinition::VALID_OPTIONS + [:validate, :rails_attribute, :accepts_nested_attributes])
+        options.assert_valid_keys(AttributeDefinition::VALID_OPTIONS + [:validate, :accepts_nested_attributes])
         container_attribute = options[:container_attribute]
 
         # TODO arg check container_attribute make sure it exists. Hard cause
@@ -157,35 +149,53 @@ module AttrJson
           self.validates_with ActiveRecord::Validations::AssociatedValidator, attributes: [name.to_sym]
         end
 
-        # We don't actually use this for anything, we provide our own covers. But registering
-        # it with usual system will let simple_form and maybe others find it.
-        if options[:rails_attribute]
-          self.attribute name.to_sym, self.attr_json_registry.fetch(name).type
-        end
+        # We don't actually use this for anything, we provide our own covers. But registering it with usual system will let simple_form and maybe others find it.
+        self.attribute name.to_sym, self.attr_json_registry.fetch(name).type
 
         _attr_jsons_module.module_eval do
-          # For getter and setter, we used to use read_store_attribute/write_store_attribute
-          # copied from Rails store_accessor implementation.
-          # https://github.com/rails/rails/blob/74c3e43fba458b9b863d27f0c45fd2d8dc603cbc/activerecord/lib/active_record/store.rb#L90-L96
-          #
-          # But in fact just getting/setting in the hash provided to us by ActiveRecord json type
-          # container works BETTER for dirty tracking. We had a test that only passed doing it
-          # this simple way.
 
           define_method("#{name}=") do |value|
+            super(value)
             attribute_def = self.class.attr_json_registry.fetch(name.to_sym)
-            public_send(attribute_def.container_attribute)[attribute_def.store_key] = attribute_def.cast(value)
+            v = attribute_def.cast(value)
+            h = public_send(attribute_def.container_attribute)
+            # For getter and setter, we used to use read_store_attribute/write_store_attribute
+            # copied from Rails store_accessor implementation.
+            # https://github.com/rails/rails/blob/74c3e43fba458b9b863d27f0c45fd2d8dc603cbc/activerecord/lib/active_record/store.rb#L90-L96
+            #
+            # But in fact just getting/setting in the hash provided to us by ActiveRecord json type
+            # container works BETTER for dirty tracking. We had a test that only passed doing it
+            # this simple way.
+            h.merge!(attribute_def.store_key => v)
           end
 
           define_method("#{name}") do
             attribute_def = self.class.attr_json_registry.fetch(name.to_sym)
-            public_send(attribute_def.container_attribute)[attribute_def.store_key]
+            h = public_send(attribute_def.container_attribute)
+            h[attribute_def.store_key]
           end
 
           define_method("#{name}?") do
             # implementation of `query_store_attribute` is based on Rails `query_attribute` implementation
             AttrJson::Record.attr_json_query_method(self, name)
           end
+        end
+
+        # TODO: test
+        #
+        # Makes sure new objects have the appropriate values in their jsonb fields.
+        after_initialize do
+          cattr = self.class.attr_json_config.default_container_attribute
+          reg = self.class.attr_json_registry
+
+          next unless has_attribute?(cattr)
+
+          v = public_send(cattr) || {}
+          v.each do |store_key, value|
+            attribute_def = reg.store_key_lookup(cattr, store_key)
+            write_attribute(attribute_def.name, value) if attribute_def
+          end
+          clear_changes_information if persisted?
         end
 
         # Default attr_json_accepts_nested_attributes_for values
