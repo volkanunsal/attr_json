@@ -159,4 +159,8 @@ RSpec.configure do |config|
   config.before do
     DatabaseCleaner.clean_with(:truncation)
   end
+
+  config.after do
+    AttrJson.reset
+  end
 end
