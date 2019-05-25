@@ -54,4 +54,5 @@ attributes use as much of the existing ActiveRecord architecture as we can.}
   spec.add_development_dependency "database_cleaner", "~> 1.5"
   spec.add_development_dependency "yard-activesupport-concern"
   spec.add_development_dependency "appraisal", "~> 2.2"
+  spec.add_development_dependency "pry", "~> 0.12"
 end

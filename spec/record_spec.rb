@@ -775,7 +775,7 @@ RSpec.describe AttrJson::Record do
       end
     end
 
-    describe "rails_attribute" do
+    xdescribe "rails_attribute" do
       it "does not register rails attribute by default" do
         expect(instance.attributes.keys).not_to include("str")
       end
@@ -798,21 +798,5 @@ RSpec.describe AttrJson::Record do
         end
       end
     end
-
-    # describe "with bad attribute" do
-    #   it "raises on decleration" do
-    #     expect {
-    #       Class.new(ActiveRecord::Base) do
-    #         include AttrJson::Record
-    #         self.table_name = "products"
-
-    #         attr_json :value, :string, container_attribute: :no_such_attribute
-    #       end
-    #     }.to raise_error(ArgumentError, /adfadf/)
-    #   end
-    # end
-
   end
-
-
 end

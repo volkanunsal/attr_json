@@ -157,7 +157,7 @@ module AttrJson
       def cast_from_hash(hash)
         new_hash = hash.stringify_keys
         model_name = new_hash.delete(type_key.to_s)
-
+        
         raise_missing_type_key(hash) if model_name.nil?
 
         type = type_for_model_name(model_name)
